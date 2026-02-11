@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Trench Chat",
+  "version": "1.0.2",
+  "description": "CA-based chat rooms for memecoin trenches",
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": ["https://trench-chat-server-production.up.railway.app/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Trench Chat"
+  }
+}

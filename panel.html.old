@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+  <script src="socket.io.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <div class="avatar-wrapper" id="avatarWrapper">
+          <img id="avatarPreview" />
+          <div class="avatar-badge"></div>
+        </div>
+        <div class="header-info">
+          <span class="room-name" id="headerTitle">Trench Chat</span>
+          <span class="room-status" id="roomStatus">Select a chat room</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn hidden" id="renameChatBtn" title="Rename">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="icon-btn hidden" id="switchChatBtn" title="Switch Chat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
+      </div>
+      <input type="file" id="avatarInput" accept="image/*" hidden />
+    </header>
+
+    <div class="profile-setup hidden" id="profileSetup">
+      <div class="setup-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <h3>Set up your profile</h3>
+      <input type="text" id="nameInput" placeholder="Enter your name..." />
+      <button class="btn-setup" id="saveProfileBtn">Continue</button>
+    </div>
+
+    <main class="main-content">
+      <div class="saved-chats" id="savedChats">
+        <div class="section-header">
+          <span>Your Chats</span>
+          <span class="chat-count" id="chatCount">0</span>
+        </div>
+        <div class="chats-list" id="chatsList"></div>
+      </div>
+
+      <div class="join-section" id="joinSection">
+        <div class="join-card">
+          <div class="join-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            </svg>
+          </div>
+          <h3>Join a Chat Room</h3>
+          <p>Enter a token's contract address to join its chat</p>
+          <div class="join-input-wrapper">
+            <input type="text" id="caInput" placeholder="Paste token CA..." />
+            <button class="btn-join" id="joinBtn">Join</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-area hidden" id="chat">
+        <div class="messages" id="messages"></div>
+      </div>
+    </main>
+
+    <div class="input-area hidden" id="inputArea">
+      <div class="input-wrapper">
+        <button class="icon-btn" id="imageBtn" title="Upload Image">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="emojiBtn" title="Emoji">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </button>
+        <input type="text" id="msgInput" placeholder="Type a message..." />
+        <button class="btn-send" id="sendBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <input type="file" id="imageInput" accept="image/*" hidden />
+      
+      <!-- Emoji Picker -->
+      <div class="emoji-picker hidden" id="emojiPicker">
+        <div class="emoji-grid">
+          <span class="emoji">😀</span>
+          <span class="emoji">😂</span>
+          <span class="emoji">🤣</span>
+          <span class="emoji">😊</span>
+          <span class="emoji">😍</span>
+          <span class="emoji">🥰</span>
+          <span class="emoji">😎</span>
+          <span class="emoji">🤑</span>
+          <span class="emoji">🤯</span>
+          <span class="emoji">🚀</span>
+          <span class="emoji">🌙</span>
+          <span class="emoji">💎</span>
+          <span class="emoji">💰</span>
+          <span class="emoji">📈</span>
+          <span class="emoji">📉</span>
+          <span class="emoji">🔥</span>
+          <span class="emoji">💪</span>
+          <span class="emoji">🙌</span>
+          <span class="emoji">👀</span>
+          <span class="emoji">🐸</span>
+          <span class="emoji">🦍</span>
+          <span class="emoji">🐂</span>
+          <span class="emoji">🐻</span>
+          <span class="emoji">⚠️</span>
+          <span class="emoji">✅</span>
+          <span class="emoji">❌</span>
+          <span class="emoji">🎯</span>
+          <span class="emoji">💯</span>
+          <span class="emoji">🤝</span>
+          <span class="emoji">👍</span>
+          <span class="emoji">👎</span>
+          <span class="emoji">🫡</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="image-modal hidden" id="imageModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <img id="modalImage" />
+        <button class="modal-close" id="modalClose">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="ad-space">
+      <div class="ad-placeholder">Ad</div>
+      <div class="ad-placeholder">Ad</div>
+      <div class="ad-placeholder">Ad</div>
+    </div>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>
