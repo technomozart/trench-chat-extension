@@ -1,5 +1,5 @@
 const openSidePanelBtn = document.getElementById('openSidePanel');
-const openPopupChatBtn = document.getElementById('openPopupChat');
+const quickChatBtn = document.getElementById('openPopupChat');
 const caInput = document.getElementById('caInput');
 const joinBtn = document.getElementById('joinBtn');
 
@@ -8,10 +8,33 @@ openSidePanelBtn.addEventListener('click', () => {
   window.close();
 });
 
-openPopupChatBtn.addEventListener('click', () => {
-  chrome.storage.local.set({ popupMode: 'chat' }, () => {
-    window.location.href = 'panel.html';
-  });
+// Quick Chat - reads clipboard and auto-joins
+quickChatBtn.addEventListener('click', async () => {
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    const ca = clipboardText.trim();
+    
+    if (ca && ca.length > 0) {
+      // Save CA and set flag to auto-join
+      chrome.storage.local.set({ 
+        quickChatCA: ca,
+        autoJoinRoom: true 
+      }, () => {
+        // Open side panel
+        chrome.runtime.sendMessage({ action: 'openSidePanel' });
+        window.close();
+      });
+    } else {
+      // No clipboard content, just open side panel
+      chrome.runtime.sendMessage({ action: 'openSidePanel' });
+      window.close();
+    }
+  } catch (err) {
+    console.error('Failed to read clipboard:', err);
+    // Fallback: just open side panel
+    chrome.runtime.sendMessage({ action: 'openSidePanel' });
+    window.close();
+  }
 });
 
 joinBtn.addEventListener('click', () => {

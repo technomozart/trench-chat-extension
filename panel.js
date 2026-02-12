@@ -137,6 +137,18 @@ function showMainApp() {
   loadReferrals();
   loadStreak();
   loadPoints();
+  
+  // Check for Quick Chat auto-join
+  chrome.storage.local.get(["autoJoinRoom", "quickChatCA"], (res) => {
+    if (res.autoJoinRoom && res.quickChatCA) {
+      // Clear flags
+      chrome.storage.local.remove(["autoJoinRoom", "quickChatCA"]);
+      // Auto-join the room
+      const ca = res.quickChatCA;
+      caInput.value = ca;
+      joinRoom(ca);
+    }
+  });
 }
 
 function showError(msg) {
@@ -517,6 +529,13 @@ function renderMessage(msg, self = false) {
   div.className = "message" + (self ? " self" : "");
   div.dataset.msgId = msg.id;
   
+  // Generate color-coded avatar
+  let hash = 0;
+  for (let i = 0; i < (msg.user || "").length; i++) {
+    hash = (msg.user || "").charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  const avatarColor = `hsl(${hue}, 65%, 55%)`;
   const initial = msg.user ? msg.user.charAt(0).toUpperCase() : "?";
   
   let content = "";
@@ -536,7 +555,7 @@ function renderMessage(msg, self = false) {
   const pickerHTML = `<div class="reaction-picker">${REACTIONS.map(r => `<span class="reaction-option" data-emoji="${r}">${r}</span>`).join("")}</div>`;
   
   div.innerHTML = `
-    <div class="msg-avatar" onclick="showUserProfile('${msg.user}')">${initial}</div>
+    <div class="msg-avatar" style="background-color: ${avatarColor}" onclick="showUserProfile('${msg.user}')">${initial}</div>
     <div class="msg-content-wrapper">
       <div class="msg-content">
         <div class="msg-user" onclick="showUserProfile('${msg.user}')">${escapeHtml(msg.user)}</div>
@@ -802,12 +821,34 @@ async function loadPoints() {
 }
 
 // ===== PROFILE =====
+function generateDefaultAvatar(username) {
+  // Create a deterministic color based on username
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 360);
+  const color = `hsl(${hue}, 65%, 55%)`;
+  
+  // Create SVG avatar
+  const initial = username.charAt(0).toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="${color}"/>
+    <text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="45" fill="white" font-weight="600">${initial}</text>
+  </svg>`;
+  
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
+
 function updateProfileUI() {
   if (!currentUser) return;
   
+  const defaultAvatar = generateDefaultAvatar(currentUser.username);
+  const avatarUrl = currentUser.avatar_url || defaultAvatar;
+  
   profileUsername.textContent = currentUser.username;
-  avatarPreview.src = currentUser.avatar_url || "";
-  profileAvatar.src = currentUser.avatar_url || "";
+  avatarPreview.src = avatarUrl;
+  profileAvatar.src = avatarUrl;
   bioInput.value = currentUser.bio || "";
   walletInput.value = currentUser.sol_wallet || "";
   msgCount.textContent = currentUser.message_count || 0;
@@ -873,7 +914,10 @@ window.showUserProfile = async (username) => {
     const data = await res.json();
     
     if (res.ok) {
-      document.getElementById("modalProfileAvatar").src = data.user.avatar_url || "";
+      const defaultAvatar = generateDefaultAvatar(data.user.username);
+      const avatarUrl = data.user.avatar_url || defaultAvatar;
+      
+      document.getElementById("modalProfileAvatar").src = avatarUrl;
       document.getElementById("modalProfileUsername").textContent = data.user.username;
       document.getElementById("modalProfileBio").textContent = data.user.bio || "No bio yet";
       document.getElementById("modalMsgCount").textContent = data.user.message_count || 0;
