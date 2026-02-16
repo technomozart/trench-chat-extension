@@ -265,7 +265,7 @@ Your continued use of Trench Chat after changes constitutes acceptance of the up
 
 If you have questions, concerns, or requests regarding this Privacy Policy or your personal data:
 
-**Email:** [Your Email Address]  
+**Email:** kakhashalamberidze25@gmail.com
 **GitHub Issues:** https://github.com/technomozart/trench-chat-extension/issues  
 **Response Time:** We aim to respond within 5 business days
 
