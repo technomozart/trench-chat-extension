@@ -927,6 +927,34 @@ window.showUserProfile = async (username) => {
       if (data.user.is_verified) badge.classList.remove("hidden");
       else badge.classList.add("hidden");
       
+      // Show admin badge if user is admin
+      const adminBadge = document.getElementById("modalAdminBadge");
+      if (adminBadge) {
+        if (data.user.is_admin) adminBadge.classList.remove("hidden");
+        else adminBadge.classList.add("hidden");
+      }
+      
+      // Show admin controls if current user is admin and viewing someone else
+      const adminControls = document.getElementById("modalAdminControls");
+      if (adminControls) {
+        if (currentUser && currentUser.is_admin && username !== currentUser.username && !data.user.is_admin) {
+          adminControls.classList.remove("hidden");
+          
+          // Set up admin action buttons
+          const muteBtn = document.getElementById("modalMuteBtn");
+          const blockBtn = document.getElementById("modalBlockBtn");
+          
+          if (muteBtn) {
+            muteBtn.onclick = () => muteUserInRoom(username, currentRoom);
+          }
+          if (blockBtn) {
+            blockBtn.onclick = () => blockUserGlobally(username);
+          }
+        } else {
+          adminControls.classList.add("hidden");
+        }
+      }
+      
       profileModal.classList.remove("hidden");
     }
   } catch (err) {
@@ -955,3 +983,100 @@ function formatTime(timestamp) {
 
 // ===== START =====
 init();
+// ===== ADMIN FUNCTIONS (v1.0.4) =====
+async function muteUserInRoom(username, room) {
+  if (!currentUser || !currentUser.is_admin) {
+    alert("Admin access required");
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_URL}/api/admin/mute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
+      body: JSON.stringify({ username, room })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      alert(`${username} has been muted in this room`);
+      profileModal.classList.add("hidden");
+    } else {
+      alert(data.error || "Failed to mute user");
+    }
+  } catch (err) {
+    console.error("Mute error:", err);
+    alert("Failed to mute user");
+  }
+}
+
+async function blockUserGlobally(username) {
+  if (!currentUser || !currentUser.is_admin) {
+    alert("Admin access required");
+    return;
+  }
+  
+  if (!confirm(`Block ${username} from ALL chat rooms? This cannot be undone easily.`)) {
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_URL}/api/admin/block`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${authToken}` },
+      body: JSON.stringify({ username })
+    });
+    
+    const data = await res.json();
+    if (res.ok) {
+      alert(`${username} has been blocked globally`);
+      profileModal.classList.add("hidden");
+    } else {
+      alert(data.error || "Failed to block user");
+    }
+  } catch (err) {
+    console.error("Block error:", err);
+    alert("Failed to block user");
+  }
+}
+
+// Show error message in chat
+function showChatError(message) {
+  const errorDiv = document.createElement("div");
+  errorDiv.className = "chat-error-message";
+  errorDiv.textContent = message;
+  messages.appendChild(errorDiv);
+  messages.scrollTop = messages.scrollHeight;
+  
+  setTimeout(() => {
+    errorDiv.remove();
+  }, 5000);
+}
+
+// Socket error handlers
+socket.on("message_error", (error) => {
+  showChatError(error);
+});
+
+socket.on("auth_failed", (error) => {
+  console.error("Auth failed:", error);
+  showError("Authentication failed. Please log in again.");
+  logout();
+});
+
+socket.on("blocked", (message) => {
+  alert(message);
+  logout();
+});
+
+socket.on("user_blocked", (data) => {
+  if (currentUser && currentUser.username === data.username) {
+    alert("You have been blocked by an administrator");
+    logout();
+  }
+});
+
+function logout() {
+  chrome.storage.local.remove(["authToken"]);
+  location.reload();
+}

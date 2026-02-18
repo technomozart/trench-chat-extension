@@ -1741,3 +1741,220 @@ html, body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ===== v1.0.4 - ADMIN & MODERATION STYLES ===== */
+
+/* Admin Badge */
+.admin-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* Modal Admin Controls */
+.modal-admin-controls {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 12px;
+}
+
+.admin-controls-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fca5a5;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.btn-admin-mute,
+.btn-admin-block {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.btn-admin-mute {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.btn-admin-mute:hover {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  transform: translateY(-1px);
+}
+
+.btn-admin-block {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: white;
+}
+
+.btn-admin-block:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  transform: translateY(-1px);
+}
+
+/* Chat Error Messages */
+.chat-error-message {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 16px;
+  color: #fca5a5;
+  font-size: 14px;
+  text-align: center;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal Profile Styles */
+.modal-profile-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.modal-profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 12px;
+  display: block;
+  border: 3px solid rgba(139, 92, 246, 0.3);
+}
+
+.modal-badges {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.modal-profile-bio {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+  margin: 0 0 20px 0;
+  padding: 0 20px;
+}
+
+.modal-profile-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.modal-stat {
+  text-align: center;
+}
+
+.modal-stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-bottom: 4px;
+}
+
+.modal-stat-label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Profile Modal Content */
+.profile-modal-content {
+  max-width: 400px;
+  padding: 24px;
+}
+
+/* Admin indicator in header */
+.header-admin-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ===== v1.0.4 - FIXED CHAT INPUT & PINNED ROOMS ===== */
+
+/* Fix chat input at bottom */
+#inputArea {
+  position: sticky !important;
+  bottom: 0 !important;
+  background: #0f172a !important;
+  z-index: 100 !important;
+  border-top: 1px solid rgba(139, 92, 246, 0.3);
+  padding: 12px 16px !important;
+  margin: 0 !important;
+}
+
+/* Messages scroll container */
+#messages {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding-bottom: 12px;
+}
+
+/* Pinned rooms styling */
+.pinned-rooms-section {
+  border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.pinned-room-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.read-only-badge {
+  display: inline-block;
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}

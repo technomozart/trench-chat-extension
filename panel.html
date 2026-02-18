@@ -333,7 +333,38 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content profile-modal-content">
       <button class="modal-close" id="profileModalClose">✕</button>
-      <div id="profileModalBody"></div>
+      <div class="modal-profile-header">
+        <img id="modalProfileAvatar" class="modal-profile-avatar" />
+        <h3 id="modalProfileUsername">Username</h3>
+        <div class="modal-badges">
+          <span class="verified-badge hidden" id="modalVerifiedBadge">✓ Verified</span>
+          <span class="admin-badge hidden" id="modalAdminBadge">👑 Admin</span>
+        </div>
+      </div>
+      <p class="modal-profile-bio" id="modalProfileBio">No bio yet</p>
+      <div class="modal-profile-stats">
+        <div class="modal-stat">
+          <span class="modal-stat-value" id="modalMsgCount">0</span>
+          <span class="modal-stat-label">Messages</span>
+        </div>
+        <div class="modal-stat">
+          <span class="modal-stat-value" id="modalRefCount">0</span>
+          <span class="modal-stat-label">Referrals</span>
+        </div>
+      </div>
+      
+      <!-- Admin Controls -->
+      <div class="modal-admin-controls hidden" id="modalAdminControls">
+        <div class="admin-controls-header">
+          <span>👑 Admin Actions</span>
+        </div>
+        <button class="btn-admin-mute" id="modalMuteBtn">
+          🔇 Mute in this room
+        </button>
+        <button class="btn-admin-block" id="modalBlockBtn">
+          🚫 Block globally
+        </button>
+      </div>
     </div>
   </div>
 
