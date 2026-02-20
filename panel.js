@@ -98,18 +98,46 @@ const profileModalClose = document.getElementById("profileModalClose");
 
 // ===== INITIALIZE =====
 async function init() {
-  chrome.storage.local.get(["authToken", "savedChats"], async (res) => {
+  chrome.storage.local.get(["authToken", "savedChats", "cachedUser", "lastCA"], async (res) => {
     if (res.savedChats) savedChats = res.savedChats;
     
     if (res.authToken) {
       authToken = res.authToken;
+      
+      // Show app immediately with cached user (no login screen flash)
+      if (res.cachedUser) {
+        currentUser = res.cachedUser;
+        showMainApp();
+        connectSocket();
+        // Rejoin last room automatically
+        if (res.lastCA) {
+          setTimeout(() => joinRoom(res.lastCA), 500);
+        }
+      }
+      
+      // Verify token in background
       const user = await fetchCurrentUser();
       if (user) {
         currentUser = user;
-        showMainApp();
-        connectSocket();
+        chrome.storage.local.set({ cachedUser: user });
+        if (!res.cachedUser) {
+          showMainApp();
+          connectSocket();
+          if (res.lastCA) {
+            setTimeout(() => joinRoom(res.lastCA), 500);
+          }
+        } else {
+          updateProfileUI();
+        }
         return;
       }
+      
+      // Token invalid and no cached user — show login
+      if (!res.cachedUser) {
+        chrome.storage.local.remove(["authToken", "cachedUser"]);
+        showAuthScreen();
+      }
+      return;
     }
     showAuthScreen();
   });
@@ -197,7 +225,7 @@ loginBtn.onclick = async () => {
     
     authToken = data.token;
     currentUser = data.user;
-    chrome.storage.local.set({ authToken });
+    chrome.storage.local.set({ authToken, cachedUser: data.user });
     
     showMainApp();
     connectSocket();
@@ -234,7 +262,7 @@ registerBtn.onclick = async () => {
     
     authToken = data.token;
     currentUser = data.user;
-    chrome.storage.local.set({ authToken });
+    chrome.storage.local.set({ authToken, cachedUser: data.user });
     
     showMainApp();
     connectSocket();
@@ -265,18 +293,32 @@ regPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") register
 logoutBtn.onclick = () => {
   authToken = null;
   currentUser = null;
-  chrome.storage.local.remove("authToken");
+  chrome.storage.local.remove(["authToken", "cachedUser", "lastCA"]);
   if (socket) socket.disconnect();
   showAuthScreen();
 };
 
 // ===== SOCKET CONNECTION =====
 function connectSocket() {
-  socket = io(API_URL);
+  if (socket) socket.disconnect();
+  
+  socket = io(API_URL, {
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 2000
+  });
   
   socket.on("connect", () => {
     console.log("Connected to server!");
     socket.emit("authenticate", authToken);
+    // Rejoin room if we were in one
+    if (currentRoom) {
+      socket.emit("join_room", currentRoom);
+    }
+  });
+  
+  socket.on("disconnect", (reason) => {
+    console.log("Disconnected:", reason);
   });
   
   socket.on("chat_history", (msgs) => {
@@ -290,6 +332,28 @@ function connectSocket() {
   
   socket.on("reaction_update", (data) => {
     updateMessageReactions(data.msgId, data.reactions);
+  });
+  
+  socket.on("message_error", (error) => {
+    showChatError(error);
+  });
+  
+  socket.on("auth_failed", (error) => {
+    console.error("Auth failed:", error);
+    showError("Session expired. Please log in again.");
+    doLogout();
+  });
+  
+  socket.on("blocked", (message) => {
+    alert(message);
+    doLogout();
+  });
+  
+  socket.on("user_blocked", (data) => {
+    if (currentUser && currentUser.username === data.username) {
+      alert("You have been blocked by an administrator");
+      doLogout();
+    }
   });
 }
 
@@ -1053,30 +1117,7 @@ function showChatError(message) {
   }, 5000);
 }
 
-// Socket error handlers
-socket.on("message_error", (error) => {
-  showChatError(error);
-});
-
-socket.on("auth_failed", (error) => {
-  console.error("Auth failed:", error);
-  showError("Authentication failed. Please log in again.");
-  logout();
-});
-
-socket.on("blocked", (message) => {
-  alert(message);
-  logout();
-});
-
-socket.on("user_blocked", (data) => {
-  if (currentUser && currentUser.username === data.username) {
-    alert("You have been blocked by an administrator");
-    logout();
-  }
-});
-
-function logout() {
-  chrome.storage.local.remove(["authToken"]);
+function doLogout() {
+  chrome.storage.local.remove(["authToken", "cachedUser", "lastCA"]);
   location.reload();
 }
