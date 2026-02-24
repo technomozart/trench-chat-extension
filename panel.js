@@ -98,46 +98,18 @@ const profileModalClose = document.getElementById("profileModalClose");
 
 // ===== INITIALIZE =====
 async function init() {
-  chrome.storage.local.get(["authToken", "savedChats", "cachedUser", "lastCA"], async (res) => {
+  chrome.storage.local.get(["authToken", "savedChats"], async (res) => {
     if (res.savedChats) savedChats = res.savedChats;
     
     if (res.authToken) {
       authToken = res.authToken;
-      
-      // Show app immediately with cached user (no login screen flash)
-      if (res.cachedUser) {
-        currentUser = res.cachedUser;
-        showMainApp();
-        connectSocket();
-        // Rejoin last room automatically
-        if (res.lastCA) {
-          setTimeout(() => joinRoom(res.lastCA), 500);
-        }
-      }
-      
-      // Verify token in background
       const user = await fetchCurrentUser();
       if (user) {
         currentUser = user;
-        chrome.storage.local.set({ cachedUser: user });
-        if (!res.cachedUser) {
-          showMainApp();
-          connectSocket();
-          if (res.lastCA) {
-            setTimeout(() => joinRoom(res.lastCA), 500);
-          }
-        } else {
-          updateProfileUI();
-        }
+        showMainApp();
+        connectSocket();
         return;
       }
-      
-      // Token invalid and no cached user — show login
-      if (!res.cachedUser) {
-        chrome.storage.local.remove(["authToken", "cachedUser"]);
-        showAuthScreen();
-      }
-      return;
     }
     showAuthScreen();
   });
@@ -167,14 +139,15 @@ function showMainApp() {
   loadPoints();
   
   // Check for Quick Chat auto-join
-  chrome.storage.local.get(["autoJoinRoom", "quickChatCA"], (res) => {
+  chrome.storage.local.get(["autoJoinRoom", "quickChatCA", "lastCA"], (res) => {
     if (res.autoJoinRoom && res.quickChatCA) {
-      // Clear flags
       chrome.storage.local.remove(["autoJoinRoom", "quickChatCA"]);
-      // Auto-join the room
       const ca = res.quickChatCA;
       caInput.value = ca;
       joinRoom(ca);
+    } else if (res.lastCA) {
+      // Auto-rejoin the last room they were in
+      joinRoom(res.lastCA);
     }
   });
 }
@@ -225,7 +198,7 @@ loginBtn.onclick = async () => {
     
     authToken = data.token;
     currentUser = data.user;
-    chrome.storage.local.set({ authToken, cachedUser: data.user });
+    chrome.storage.local.set({ authToken });
     
     showMainApp();
     connectSocket();
@@ -246,6 +219,16 @@ registerBtn.onclick = async () => {
     return;
   }
   
+  if (username.length < 3) {
+    showError("Username must be at least 3 characters");
+    return;
+  }
+  
+  if (password.length < 6) {
+    showError("Password must be at least 6 characters");
+    return;
+  }
+  
   try {
     const res = await fetch(`${API_URL}/api/auth/register`, {
       method: "POST",
@@ -262,7 +245,7 @@ registerBtn.onclick = async () => {
     
     authToken = data.token;
     currentUser = data.user;
-    chrome.storage.local.set({ authToken, cachedUser: data.user });
+    chrome.storage.local.set({ authToken });
     
     showMainApp();
     connectSocket();
@@ -291,16 +274,14 @@ regPassword.addEventListener("keydown", (e) => { if (e.key === "Enter") register
 
 // Logout
 logoutBtn.onclick = () => {
-  authToken = null;
-  currentUser = null;
-  chrome.storage.local.remove(["authToken", "cachedUser", "lastCA"]);
-  if (socket) socket.disconnect();
-  showAuthScreen();
+  logout();
 };
 
 // ===== SOCKET CONNECTION =====
 function connectSocket() {
-  if (socket) socket.disconnect();
+  if (socket) {
+    socket.disconnect();
+  }
   
   socket = io(API_URL, {
     reconnection: true,
@@ -311,7 +292,13 @@ function connectSocket() {
   socket.on("connect", () => {
     console.log("Connected to server!");
     socket.emit("authenticate", authToken);
-    // Rejoin room if we were in one
+    // Update connection indicator
+    const badge = document.querySelector(".avatar-badge");
+    if (badge) badge.style.backgroundColor = "#22c55e";
+  });
+  
+  socket.on("authenticated", (data) => {
+    console.log("Authenticated as:", data.username);
     if (currentRoom) {
       socket.emit("join_room", currentRoom);
     }
@@ -319,40 +306,81 @@ function connectSocket() {
   
   socket.on("disconnect", (reason) => {
     console.log("Disconnected:", reason);
+    const badge = document.querySelector(".avatar-badge");
+    if (badge) badge.style.backgroundColor = "#ef4444";
   });
   
   socket.on("chat_history", (msgs) => {
     messages.innerHTML = "";
     msgs.forEach(m => renderMessage(m, m.user === currentUser.username));
+    messages.scrollTop = messages.scrollHeight;
   });
   
   socket.on("receive_message", (msg) => {
+    const isNearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 100;
     renderMessage(msg, msg.user === currentUser.username);
+    
+    // Show unread badge on Chat tab if user is on a different tab
+    const chatTabBtn = document.querySelector('[data-tab="chat"]');
+    if (chatTabBtn && !chatTabBtn.classList.contains("active") && msg.user !== currentUser.username) {
+      if (!chatTabBtn.querySelector(".unread-dot")) {
+        const dot = document.createElement("span");
+        dot.className = "unread-dot";
+        chatTabBtn.appendChild(dot);
+      }
+    }
+    
+    if (isNearBottom || (msg.user === currentUser.username)) {
+      messages.scrollTop = messages.scrollHeight;
+      const indicator = document.getElementById("newMsgIndicator");
+      if (indicator) indicator.classList.add("hidden");
+    } else {
+      let indicator = document.getElementById("newMsgIndicator");
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "newMsgIndicator";
+        indicator.className = "new-msg-indicator";
+        indicator.textContent = "↓ New messages";
+        indicator.onclick = () => {
+          messages.scrollTop = messages.scrollHeight;
+          indicator.classList.add("hidden");
+        };
+        messages.parentElement.appendChild(indicator);
+      }
+      indicator.classList.remove("hidden");
+    }
   });
   
   socket.on("reaction_update", (data) => {
     updateMessageReactions(data.msgId, data.reactions);
   });
   
+  socket.on("online_count", (count) => {
+    if (currentRoom) {
+      roomStatus.textContent = currentRoom.slice(0,8) + "..." + currentRoom.slice(-6) + " • " + count + " online";
+    }
+  });
+  
+  // Error handlers
   socket.on("message_error", (error) => {
     showChatError(error);
   });
-  
+
   socket.on("auth_failed", (error) => {
     console.error("Auth failed:", error);
-    showError("Session expired. Please log in again.");
-    doLogout();
+    showError("Authentication failed. Please log in again.");
+    logout();
   });
-  
+
   socket.on("blocked", (message) => {
     alert(message);
-    doLogout();
+    logout();
   });
-  
+
   socket.on("user_blocked", (data) => {
     if (currentUser && currentUser.username === data.username) {
       alert("You have been blocked by an administrator");
-      doLogout();
+      logout();
     }
   });
 }
@@ -367,6 +395,12 @@ tabBtns.forEach(btn => {
     
     btn.classList.add("active");
     document.getElementById(`${tab}Tab`).classList.add("active");
+    
+    // Remove unread dot when switching to chat
+    if (tab === "chat") {
+      const dot = btn.querySelector(".unread-dot");
+      if (dot) dot.remove();
+    }
     
     if (tab === "chat" && currentRoom) {
       inputArea.classList.remove("hidden");
@@ -519,11 +553,17 @@ renameChatBtn.onclick = () => {
 
 // Send message
 function sendMessage() {
-  if (!msgInput.value.trim() || !currentRoom) return;
+  const text = msgInput.value.trim();
+  if (!text || !currentRoom) return;
+  
+  if (text.length > 500) {
+    showChatError("Message too long (max 500 characters)");
+    return;
+  }
   
   socket.emit("send_message", {
     room: currentRoom,
-    message: { user: currentUser.username, text: msgInput.value.trim() }
+    message: { user: currentUser.username, text }
   });
   
   msgInput.value = "";
@@ -555,6 +595,13 @@ imageBtn.onclick = () => imageInput.click();
 imageInput.onchange = () => {
   const file = imageInput.files[0];
   if (!file || !currentRoom) return;
+  
+  // 2MB limit
+  if (file.size > 2 * 1024 * 1024) {
+    showChatError("Image too large (max 2MB)");
+    imageInput.value = "";
+    return;
+  }
   
   const reader = new FileReader();
   reader.onload = () => {
@@ -749,7 +796,7 @@ async function loadReferrals() {
     });
     const data = await res.json();
     
-    referralLink.value = `trench.chat/ref/${data.referralCode}`;
+    referralLink.value = data.referralCode;
     verifiedCount.textContent = data.stats.verified;
     pendingCount.textContent = data.stats.pending;
     
@@ -792,7 +839,7 @@ copyRefLink.onclick = () => {
   referralLink.select();
   document.execCommand("copy");
   copyRefLink.textContent = "✅ Copied!";
-  setTimeout(() => copyRefLink.textContent = "📋 Copy", 2000);
+  setTimeout(() => copyRefLink.textContent = "📋 Copy Code", 2000);
 };
 
 // ===== STREAK =====
@@ -1117,7 +1164,8 @@ function showChatError(message) {
   }, 5000);
 }
 
-function doLogout() {
-  chrome.storage.local.remove(["authToken", "cachedUser", "lastCA"]);
+function logout() {
+  chrome.storage.local.remove(["authToken"]);
+  if (socket) socket.disconnect();
   location.reload();
 }
